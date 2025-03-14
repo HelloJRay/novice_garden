@@ -4,7 +4,7 @@
 
 ### **一、Dockerfile构建思路和基础模板**
 
-        构建基于ARM架构JDK8的Docker镜像来运行Spring Boot程序, 默认已有程序包如：com-trs-cost.jar。
+        构建基于ARM架构JDK8的Docker镜像来运行Spring Boot程序, 默认已有程序包如：com-ray-app.jar。
 
         基础镜像,ARM架构的JDK8，常见的选项有Eclipse Temurin或Amazon Corretto。下面的Dokerfile中选择arm64v8的Eclipse Temurin 8 JDK镜像，因为它广泛使用且稳定。
 
@@ -38,7 +38,7 @@
 > 
 > 8. 定义启动命令
 
-        以下是基于 **ARM架构JDK8** 直接运行现有Spring Boot程序 `com-trs-cost.jar` 的Dockerfile内容：
+        以下是基于 **ARM架构JDK8** 直接运行现有Spring Boot程序 `com-ray-app.jar` 的Dockerfile内容：
 
 ```dockerfile
 # 使用ARM架构的JDK 8作为基础镜像
@@ -56,8 +56,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 # USER springuser
 
 # 复制本地JAR文件到镜像中（假设JAR文件位于当前目录的target子目录下）
-# COPY --chown=springuser:springuser target/com-trs-cost.jar /app/com-trs-cost.jar
-COPY target/com-trs-cost.jar /app/com-trs-cost.jar
+# COPY --chown=springuser:springuser target/com-ray-app.jar /app/com-ray-app.jar
+COPY target/com-ray-app.jar /app/com-ray-app.jar
 
 # 优化ARM架构的JVM参数
 ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -XX:+UseG1GC"
@@ -69,7 +69,7 @@ ENV SPRING_OPTS="--spring.profiles.active=local --debug "
 EXPOSE 18188
 
 # 启动命令
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-trs-cost.jar $SPRING_OPTS"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-ray-app.jar $SPRING_OPTS"]
 ```
 
 ---
@@ -77,12 +77,12 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-trs-cost.jar $SPRING_OPTS
 ### **二、Dockerfile使用说明**
 
 1. **文件结构要求**  
-   将 `com-trs-cost.jar` 放在与Dockerfile同级目录的 `target` 子目录中：
+   将 `com-ray-app.jar` 放在与Dockerfile同级目录的 `target` 子目录中：
    
    ```
    ├── Dockerfile
    └── target/
-       └── com-trs-cost.jar
+       └── com-ray-app.jar
    ```
 
 2. **构建镜像**  
