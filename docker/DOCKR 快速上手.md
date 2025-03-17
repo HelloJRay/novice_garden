@@ -88,8 +88,10 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-ray-app.jar $SPRING_OPTS"
 2. **构建镜像**  
    
    ```bash
-   docker build -t trs-cost-app:1.0 --platform linux/arm64 .
+   docker build -t com-ray-app:1.0 --platform linux/arm64 .
    ```
+   
+   注： docker build 命令最后面有一个半角的点符号，表示当前目录，为必要参数。
 
 3. **运行容器**  
    
@@ -98,15 +100,15 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-ray-app.jar $SPRING_OPTS"
      --platform linux/arm64 \
      -p 18183:18188\
      --memory=2g \
-     --name trs-cost \
-     trs-cost-app:1.0
+     --name com-ray-app \
+     com-ray-app:1.0
    ```
 
         注： 18183 为容器外宿主机上监听的端口号，18188为docker内监听的端口号
 
 ---
 
-### **三、关键配置说明**
+### **三、Dockerfile 关键配置说明**
 
 | 配置项         | 说明                                                         |
 | ----------- | ---------------------------------------------------------- |
@@ -118,31 +120,31 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-ray-app.jar $SPRING_OPTS"
 
 ---
 
-### **四、验证方法**
+### **四、镜像验证方法**
 
 1. **检查容器架构**  
    
    ```bash
-   docker exec trs-cost uname -m
+   docker exec com-ray-app uname -m
    # 应输出：aarch64
    ```
 
 2. **查看JVM版本**  
    
    ```bash
-   docker exec trs-cost java -version
+   docker exec com-ray-app java -version
    # 应输出ARM架构的JDK8信息
    ```
 
 3. **监控应用日志**  
    
    ```bash
-   docker logs -f trs-cost
+   docker logs -f com-ray-app
    ```
 
 ---
 
-### **五、扩展配置建议**
+### **五、容器扩展配置建议**
 
 1. **健康检查**  
    添加HTTP健康检查（需应用实现健康检查端点）：
@@ -156,7 +158,7 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-ray-app.jar $SPRING_OPTS"
    若需要外部化配置，可挂载配置文件：
    
    ```bash
-   docker run -v /path/to/config:/app/config trs-cost-app:1.0
+   docker run -v /path/to/config:/app/config com-ray-app:1.0
    ```
 
 3. **性能监控**  
@@ -167,7 +169,7 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/com-ray-app.jar $SPRING_OPTS"
    EXPOSE 9010
    ```
 
-### **六、EXPOSE详解**
+### **六、Dockerfile EXPOSE详解**
 
 DOCKER FILE中EXPOSE主要用于：
 
@@ -179,7 +181,7 @@ DOCKER FILE中EXPOSE主要用于：
 
 ---
 
-#### 6.1 核心作用解析
+#### 6.1 EXPOSE核心作用解析
 
 ##### 6.1.1. **文档化说明（关键作用）**
 
@@ -304,6 +306,252 @@ EXPOSE 80/tcp 443/tcp 8080/tcp
 
 通过 `EXPOSE` 的正确使用，可以使 Docker 镜像：  
 ✅ 更易维护 ✅ 更安全（避免无意识暴露端口） ✅ 更易集成到编排系统（如 Kubernetes）
+
+### **七、Docker网络**
+
+#### 7.1 核心概念
+
+##### 7.1.1 网络模式解析
+
+> Docker 提供五种基础网络模式：
+> 
+> - **bridge**（默认）：通过虚拟网桥实现容器间通信 
+> - **host**：直接使用宿主机网络栈，无隔离 
+> - **overlay**：跨主机容器组网的集群方案 
+> - **macvlan**：为容器分配物理网卡特性 
+> - **none**：完全禁用网络栈 
+
+##### 7.1.2 网络驱动选择
+
+| 驱动类型    | 适用场景    | 性能损耗 |
+| ------- | ------- | ---- |
+| bridge  | 单机容器通信  | 低    |
+| overlay | 跨主机容器组网 | 中    |
+| macvlan | 物理网络直通  | 最低   |
+
+---
+
+#### 7.2 核心操作命令
+
+##### 7.2.1 `docker run` 网络配置
+
+1) **基础语法**：
+   
+   ```bash
+   docker run [OPTIONS] --network=<模式> [镜像]
+   ```
+
+2) **常用配置参数**：
+   
+   ```bash
+   # 端口映射（NAT）
+   -p 8080:80
+   
+   # 指定网络模式
+   --network=my_bridge
+   
+   # 指定容器IP（需自定义网络）
+   --ip 172.18.0.10
+   
+   # 主机名映射
+   --hostname web01
+   
+   # DNS配置
+   --dns 8.8.8.8
+   ```
+
+3) **典型用例**：
+   
+   ```bash
+   # 在自定义网络启动Web服务
+   docker run -d --name webapp \
+   --network prod_net \
+   -p 8080:3000 \
+   --dns 223.5.5.5 \
+   my_web:latest
+   ```
+
+##### 7.2.2 `docker network` 管理命令
+
+1) **网络生命周期管理**：
+   
+   ```bash
+   # 创建自定义桥接网络
+   docker network create --driver=bridge \
+   --subnet=172.18.0.0/24 \
+   --gateway=172.18.0.1 \
+   prod_net
+   
+   # 查看网络拓扑
+   docker network inspect prod_net
+   
+   # 容器动态接入网络
+   docker network connect backup_net webapp
+   
+   # 清理未使用网络
+   docker network prune
+   ```
+
+2) **高级技巧**：
+   
+   1) 使用 `--attachable` 参数创建支持动态接入的网络 
+   2) 通过 `docker network connect --alias db` 设置网络别名 
+   3) 组合使用 `--ip-range` 和 `--subnet` 精确控制IP分配 
+
+---
+
+#### 7.3 实战场景：电商微服务网络配置
+
+##### 7.3.1 环境需求
+
+- 前端服务（2个实例）
+- 订单服务（需连接MySQL）
+- MySQL数据库（仅限内部访问）
+- Redis缓存（跨主机访问）
+
+##### 7.3.2 实施步骤
+
+```bash
+# 创建业务网络
+docker network create --driver=bridge \
+  --subnet=10.5.0.0/24 \
+  ecommerce_net
+
+# 启动数据库（仅内部访问）
+docker run -d --name mysql \
+  --network ecommerce_net \
+  -e MYSQL_ROOT_PASSWORD=secret \
+  mysql:8.0
+
+# 启动带端口映射的前端
+docker run -d --name frontend-1 \
+  --network ecommerce_net \
+  -p 80:8080 \
+  frontend:prod
+
+# 创建跨主机网络
+docker network create --driver=overlay \
+  --attachable \
+  redis_cluster
+```
+
+##### 7.3.3 验证方法
+
+```bash
+# 检查服务发现
+docker exec -it frontend-1 ping mysql
+
+# 测试跨主机通信
+docker run --rm --network redis_cluster \
+  redis-tool check-cluster
+```
+
+---
+
+#### 7.4 常见问题排查指南
+
+##### 7.4.1 容器无法访问外网
+
+1) **现象**：
+   
+   ```bash
+   docker exec webapp curl https://api.example.com
+   # 返回 "Could not resolve host"
+   ```
+
+2) **解决方案**：
+   
+   1) 检查容器DNS配置：
+      
+      ```bash
+      docker inspect webapp | grep Dns
+      ```
+   
+   2) 验证宿主机网络策略：
+      
+      ```bash
+      iptables -t nat -L DOCKER
+      ```
+   
+   3) 重建网络时保留已分配IP 
+
+##### 7.4.2 端口映射失效
+
+1) **典型场景**：
+   
+   ```bash
+   docker run -p 3306:3306 mysql
+   # 宿主机端口无监听
+   ```
+
+2) **排查步骤**：
+   
+   1) 确认容器进程监听0.0.0.0：
+      
+      ```bash
+      docker exec mysql netstat -tulnp
+      ```
+   
+   2) 检查防火墙规则：
+      
+      ```bash
+      firewall-cmd --list-all | grep docker
+      ```
+   
+   3) 验证NAT规则：
+      
+      ```bash
+      iptables -t nat -nvL DOCKER
+      ```
+
+##### 7.4.3 跨网络通信失败
+
+1) **错误示例**：
+   
+   ```bash
+   docker exec frontend-1 ping redis-node
+   # ping: redis-node: Name or service not known
+   ```
+
+2) **解决方法**：
+   
+   1) 确认容器在同一网络：
+      
+      ```bash
+      docker network inspect ecommerce_net
+      ```
+   
+   2) 使用完整域名进行访问：
+      
+      ```bash
+      redis-node.redis_cluster
+      ```
+   
+   3) 更新服务发现配置 
+
+#### 7.5 最佳实践建议
+
+##### 7.5.1 **生产环境网络规划**：
+
+- 业务流量使用 overlay 网络
+- 管理流量使用独立 bridge 网络
+- 数据库使用 macvlan 直连物理网络 
+
+##### 7.5.2 **安全策略**：
+
+```bash
+# 创建隔离网络
+docker network create --internal secure_net
+
+# 限制网络访问
+docker network connect --ip 10.20.30.40 secure_net app
+```
+
+##### 7.5.3 **性能优化**：
+
+- 设置 `--mtu=9000` 支持巨型帧 
+- 使用 `--ipv6` 启用双栈支持
+- 调整 `com.docker.network.driver.mtu` 参数 
 
 ### 文档声明
 
