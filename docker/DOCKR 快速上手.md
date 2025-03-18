@@ -1,3 +1,5 @@
+##### 7.6.4
+
 ## DOCKR 快速上手
 
 本手册从简单的SpringBoot程序镜像编写入手，逐步讲解常用的docker知识和命令，争取通过一份文档快速帮助初学者立马上手docker并参与到日常开发、问题定位和基础环境运维的工作日常中。
@@ -321,6 +323,16 @@ EXPOSE 80/tcp 443/tcp 8080/tcp
 > - **macvlan**：为容器分配物理网卡特性 
 > - **none**：完全禁用网络栈 
 
+| 模式类型        | 通信范围    | 性能损耗 | 适用场景               | 典型限制       |
+| ----------- | ------- | ---- | ------------------ | ---------- |
+| **Bridge**  | 单机容器间通信 | 低    | 默认模式，需端口映射的 Web 服务 | 跨主机通信需额外配置 |
+| **Host**    | 宿主机网络直通 | 最低   | 高性能需求（如流媒体服务）      | 端口冲突风险高    |
+| **None**    | 完全隔离    | 无    | 离线批处理/安全敏感场景       | 无法网络通信     |
+| **macvlan** | 共享容器网络  | 中    | 代理容器/日志采集          | 依赖主容器生命周期  |
+| **Overlay** | 跨主机容器通信 | 中    | 分布式微服务集群           | 需集群环境支持    |
+
+---
+
 ##### 7.1.2 网络驱动选择
 
 | 驱动类型    | 适用场景    | 性能损耗 |
@@ -371,7 +383,7 @@ EXPOSE 80/tcp 443/tcp 8080/tcp
    my_web:latest
    ```
 
-##### 7.2.2 `docker network` 管理命令
+##### 7.2.2 `docker network` 网络管理命令
 
 1) **网络生命周期管理**：
    
@@ -416,6 +428,8 @@ EXPOSE 80/tcp 443/tcp 8080/tcp
 docker network create --driver=bridge \
   --subnet=10.5.0.0/24 \
   ecommerce_net
+# 10.5.0.0 是 IPv4 私有地址段的一部分，属于 A 类私有地址范围（10.0.0.0/8），通常用于局域网内部通信，避免与公网 IP 冲突。
+# /24 表示子网掩码为 255.255.255.0，即前 24 位为网络地址，后 8 位为主机地址。此划分允许该子网容纳 ​254 个可用 IP 地址​（范围：10.5.0.1~10.5.0.254）
 
 # 启动数据库（仅内部访问）
 docker run -d --name mysql \
@@ -552,6 +566,92 @@ docker network connect --ip 10.20.30.40 secure_net app
 - 设置 `--mtu=9000` 支持巨型帧 
 - 使用 `--ipv6` 启用双栈支持
 - 调整 `com.docker.network.driver.mtu` 参数 
+
+#### 7.6 docker网络在微服务部署上的应用
+
+##### 7.6.1 **单机微服务架构**
+
+1) **前端+后端服务**
+   
+   ```bash
+   # 创建自定义桥接网络（提升服务发现效率）
+   docker network create --driver=bridge --subnet=172.20.0.0/24 app_net
+   # 启动后端服务（仅内部通信）
+   docker run -d --name order-service --network app_net order:latest
+   # 启动前端服务（暴露端口）
+   docker run -d --name frontend -p 80:3000 --network app_net frontend:latest
+   ```
+
+**优势**：通过容器名直接互访（如 `frontend` 可直接调用 `http://order-service:8080`）
+
+##### 7.6.2 **跨主机微服务集群**
+
+1) **数据库+微服务集群**
+   
+   ```bash
+   # 创建 Overlay 网络（跨主机通信）
+     docker network create --driver=overlay --attachable cluster_net
+   
+     # 启动 MySQL（限制外部访问）
+     docker run -d --name mysql --network cluster_net --network-alias db mysql:8.0
+   
+     # 微服务节点（多主机部署）
+     docker run -d --name payment-service --network cluster_net payment:latest
+   ```
+   
+    **优势**：跨主机服务通过别名（`db`）直连，无需关心物理 IP
+
+##### 7.6.3 **混合模式实战**
+
+1) **电商系统示例**
+   
+   ```bash
+     # 业务网络（Overlay）
+     docker network create -d overlay --subnet=10.1.0.0/24 ecom_net
+   
+     # 支付网关（Host 模式提升性能）
+     docker run -d --name payment-gateway --network host payment-gw:latest
+   
+     # 订单服务（自定义桥接网络）
+     docker run -d --name order-service --network ecom_net order:latest
+   
+     # 数据分析容器（None 模式隔离）
+     docker run -d --name analytics --network none spark:latest
+   ```
+   
+   ##### 7.6.4
+   
+   > **性能敏感型服务** → Host 模式（如视频转码）
+   > 
+   > **内部通信服务** → 自定义 Bridge 网络（如 API 网关）
+   > 
+   > **跨主机服务** → Overlay 网络（如分布式缓存）
+   > 
+   > **安全隔离需求** → None 模式（如密钥管理）
+   
+   ###### 7.6.5 **常见问题解决方案**
+   
+   1) **端口冲突**
+      
+      > Host 模式下多个容器绑定同一端口会导致启动失败，建议改用 Bridge + 端口映射组合
+   
+   2) **跨网络通信阻塞**
+      
+      > 不同子网的容器间通信需配置路由规则或使用 Overlay 网络
+   
+   3) **DNS 解析失效**
+      
+      > 检查自定义网络的 `--dns` 参数，或通过 `docker network connect` 动态加入网络
+      
+   ###### 7.6.6 **性能优化技巧**
+      
+      1) **巨型帧支持**：创建网络时添加 `--opt com.docker.network.driver.mtu=9000`
+      
+      2) **双栈网络**：启用 IPv6 支持 `docker network create --ipv6`
+      
+      3) **负载均衡**：结合 `--network-alias` 实现容器组内负载均衡
+
+### 八、docker 存储
 
 ### 文档声明
 
