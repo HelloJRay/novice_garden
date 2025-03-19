@@ -709,9 +709,9 @@ docker network connect --ip 10.20.30.40 secure_net app
 
 7) **负载均衡**：结合 `--network-alias` 实现容器组内负载均衡
 
-### 四、docker 存储
+### 四、docker 存储（TODO）
 
-### 五、docker compose
+### 五、docker compose (TODO)
 
 ### 六、docker镜像的兼容性探讨
 
@@ -987,15 +987,9 @@ docker buildx build --platform linux/amd64,linux/arm64 -t myapp:multi-arch .
 >    
 >    通过合理选择缓存类型（如Registry用于团队协作、gha用于GitHub CI）及参数优化（如`mode=max`保留中间层），可减少40%以上的构建时间。建议优先在CI/CD流水线中实施远程缓存策略，并结合`--link`指令实现文件操作并行化。
 
-
-
-
-
 **总结**
 
        通过构建器实例的创建、激活与平台定义，`docker buildx build` 实现了与多平台构建能力的无缝对接。开发者可根据需求选择隐式或显式关联方式，并结合驱动类型与缓存策略优化构建流程。
-
-
 
 ---
 
@@ -1039,6 +1033,8 @@ docker buildx build --platform linux/amd64,linux/arm64 -t myapp:multi-arch .
 ---
 
         通过上述方案，开发者可在不同架构环境中高效部署Docker容器，平衡性能与兼容性需求。实际应用中需结合业务场景选择最优策略，并持续关注Docker生态的技术演进。
+
+### 七、docker secret (TODO)
 
 ### 附录 :
 
