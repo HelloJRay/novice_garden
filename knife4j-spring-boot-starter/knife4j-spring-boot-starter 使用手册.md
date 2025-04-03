@@ -4,32 +4,30 @@
 
 ```xml
     <parent>
-		<groupId>org.springframework.boot</groupId>
-		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>2.7.15</version>
-	</parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.15</version>
+    </parent>
     ......
     <properties>
-		<java.version>1.8</java.version>
-		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <java.version>1.8</java.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     </properties>
-    
+
     <dependencies>
         <dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.github.xiaoymin</groupId>
-			<artifactId>knife4j-spring-boot-starter</artifactId>
-			<version>3.0.3</version>
-		</dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.xiaoymin</groupId>
+            <artifactId>knife4j-spring-boot-starter</artifactId>
+            <version>3.0.3</version>
+        </dependency>
         ......
     </dependencies>
 ```
-
-
 
 ### 二、yml配置
 
@@ -47,7 +45,7 @@ knife4j:
     enableGroup: true
     enableFooter: false
     enableFooterCustom: false
-    footerCustomContent: Copyright &copy; 这是一个XXX服务
+    footerCustomContent: Copyright © 这是一个XXX服务
 ```
 
 ### 三、java配置
@@ -238,7 +236,7 @@ public class VolumeTimeVo{
 public class XXXController {
 
     @Resource
-	private DomainService domainService;
+    private DomainService domainService;
 
     /**
      * US分领域计算 <br/>
@@ -257,10 +255,14 @@ public class XXXController {
     })
     // ApiImplicitParams 对接口的部分或全部参数进行逐一说明
     @ApiImplicitParams(value = {
-            // name 表示参数名(要和方法参数名一致) value 表示参数的描述
-            // required 表示该参数是否为必填项 值为true表示必填 值为false表示可选
-            // dataType|dataTypeClass 表示参数的数据类型 通常不用写由程序自动探测即可。
-            // paramType 表示REST参数类型，可选值有：query、path、body、form、header。
+            // 1. name 表示参数名(要和方法参数名一致) value 表示参数的描述
+            // 2. required 表示该参数是否为必填项 值为true表示必填 值为false表示可选
+            // 3. dataType|dataTypeClass 表示参数的数据类型 通常不用写由程序自动探测即可。
+            //    自定义类型建议不声明dataType或这dataTypeClass,
+            //    必须情况情况建议使用：dataType="对象类全路径名称" 否则页面展示‘请求样例’部分可能渲染不上。
+            //    如果最终显示的‘请求样例’不完整，
+            //    可以采用@ApiOperationSupport.includeParameters和@ApiOperationSupport.ignoreParameters联合使用的方式手动声明参数结构。
+            // 4. paramType 表示REST参数类型，可选值有：query、path、body、form、header。
             //           query参数表示由问号传参的形式传递的参数
             //           path参数表示由路径传参的形式传递的参数
             //           body参数表示POST、PUT请求传递的请求体内容
@@ -268,7 +270,7 @@ public class XXXController {
             //           header参数表示请求头中的参数，如‘swagger configuration’章节中声明的‘Authoritarian’参数
             @ApiImplicitParam(name = "domainNameEnum", value = "领域名称", required=true, dataTypeClass = domainNameEnum.class, paramType = "path", example="us"),
             @ApiImplicitParam(name = "year", value = "年份", required=true, dataType = "int32",paramType = "path", example="2025"),
-            @ApiImplicitParam(name = "calcConfigParam", value = "计算配置参数", required=true, dataTypeClass = CalcConfigParam.class, paramType = "body")
+            @ApiImplicitParam(name = "calcConfigParam", value = "计算配置参数", required=true, dataType = "com.***.CalcConfigParam", paramType = "body")
     })
     @PostMapping(value = {
                     "/calc/{domainName}/{fiscalYear}"})
@@ -276,8 +278,8 @@ public class XXXController {
             @PathVariable @NotNull(message = "domainName 不能为空") DomainNameEnum domainName,
             @PathVariable @NotNull(message = "fiscalYear 不能为空") Integer year,
             @RequestBody @NotNull(message="计算配置参数不能为空") CalcConfigParam calcConfigParam
-			) {
-        
+            ) {
+
         return domainService.calcByDomain(domainName, year, calcConfigParam);
     }
 
@@ -295,14 +297,14 @@ public class XXXController {
             @ApiImplicitParam(name = "domainNameEnum", value = "领域名称", required=true, dataTypeClass = domainNameEnum.class, paramType = "path", example="us"),
             @ApiImplicitParam(name = "year", value = "年份", required=true, dataType = "int32",paramType = "path", example="2025"))
     })
-    // ApiOperationSupport 对参数进行定制化展示
+    // ApiOperationSupport 对参数进行定制化展示（同一个参数不建议同时使用'@ApiImplicitParam', 可能存在接口页面部分内容渲染缺失的情况）
     //   includeParameters 配置‘calcConfigParam’对象中展示在接口页面中的属性
     //   ignoreParameters 配置‘calcConfigParam’对象中不展示在接口页面中的属性
 
     //    例如新增接口时,某实体类不需要显示Id,即可使用该属性对参数进行忽略.ignoreParameters={"id"}
     //    如果存在多个层次的参数过滤,则使用名称.属性的方式,例如 ignoreParameters={"uptModel.id","uptModel.uptPo.id"},其中uptModel是实体对象参数名称,id为其属性,uptPo为实体类,作为uptModel类的属性名称
     //    如果参数层级只是一级的情况下,并且参数是实体类的情况下,不需要设置参数名称,直接给定属性值名称即可.
-	@ApiOperationSupport(
+    @ApiOperationSupport(
             ignoreParameters = {
                   "calcConfigParam.defaultConfigs"
             }
@@ -313,15 +315,15 @@ public class XXXController {
             @PathVariable @NotNull(message = "domainName 不能为空") DomainNameEnum domainName,
             @PathVariable @NotNull(message = "fiscalYear 不能为空") Integer year,
             @RequestBody @NotNull(message="计算配置参数不能为空") CalcConfigParam calcConfigParam
-			) {
-         
+            ) {
+
         return domainService.calcByDomainV2(domainName, year, calcConfigParam);
     }
 
     // 表单上传接口 
     // 在演示环境下使用ApiImplicitParams对参数声明时无法达到预期效果（在接口页面测试接口时无法上传文件），
     // 多次测试下来使用下面的注解组合可以达到既可以在接口页面包含接口信息也可以正确的在接口页面测试接口。
-  	@ApiOperation(value = "上传", notes = "文件(multipartFile)")
+      @ApiOperation(value = "上传", notes = "文件(multipartFile)")
     @RequestMapping(value="/upload/{extension}/",
             method = RequestMethod.POST,
             consumes = MediaType.MULTIPART_FORM_DATA_VALUE,
@@ -345,5 +347,3 @@ public class XXXController {
 ### 四、声明
 
 *实际开发中发现不同版本的knife4j、swagger在使用过程中，部分注解以及多注解组合的使用效果存在差异。*
-
-
