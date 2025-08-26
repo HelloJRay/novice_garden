@@ -110,7 +110,7 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /ray-app/com-ray-cost.jar $SPRING_
    
    ```bash
    # 隐式但平台编译镜像，构建的系统架构以当前编译环境为主
-   docker build -t com-ray-app:1.0 .
+   docker build -t com-ray-app:1.0 --platform linux/amd64 .
    # 显式指定单平台编译镜像
    docker build -t com-ray-app:1.0 --platform linux/arm64 .
    # 多平台交叉编译镜像
@@ -176,7 +176,6 @@ ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /ray-app/com-ray-cost.jar $SPRING_
    添加HTTP健康检查（需应用实现健康检查端点）：
    
    ```dockerfile
-   
    # 需要在pom中引用’spring-boot-starter-actuator‘并开启’health‘监控点，
    # 参考application.properties的配置：
    #    开启所有监控点：management.endpoints.web.exposure.include: "*"
